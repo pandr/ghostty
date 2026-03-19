@@ -3012,6 +3012,18 @@ keybind: Keybinds = .{},
 ///
 ///  * `vec3 iSelectionForegroundColor` - Selection foreground color (RGB).
 ///
+///  * `vec2 iCellSize` - Size of a single terminal cell in pixels (width, height).
+///
+///  * `vec2 iGridSize` - Number of columns and rows in the terminal grid.
+///
+///  * `vec2 iGridOffset` - Pixel offset from the top-left corner of the surface
+///    to the top-left corner of the first cell. This accounts for both the
+///    configured padding and any additional blank space used to center the grid.
+///
+///  * `float iTimeLastKey` - Timestamp of the last key press, in the same
+///    units as `iTime`. Use `iTime - iTimeLastKey` to get the number of
+///    seconds elapsed since the last key press. Starts at 0 (no key pressed yet).
+///
 /// If the shader fails to compile, the shader will be ignored. Any errors
 /// related to shader compilation will not show up as configuration errors
 /// and only show up in the log, since shader compilation happens after

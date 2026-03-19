@@ -119,6 +119,10 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
         /// shaders to update their state.
         custom_shader_focused_changed: bool = false,
 
+        /// Flag to indicate that a key was pressed, for custom shaders
+        /// to update iTimeLastKey.
+        custom_shader_key_pressed: bool = false,
+
         /// The most recent scrollbar state. We use this as a cache to
         /// determine if we need to notify the apprt that there was a
         /// scrollbar change.
@@ -769,6 +773,10 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
                     .cursor_text = @splat(0),
                     .selection_background_color = @splat(0),
                     .selection_foreground_color = @splat(0),
+                    .cell_size = .{ 0, 0 },
+                    .grid_size = .{ 0, 0 },
+                    .grid_offset = .{ 0, 0 },
+                    .key_time = 0,
                 },
                 .bg_image_buffer = undefined,
 
@@ -1047,6 +1055,14 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
             }
         }
 
+        /// Callback when a key is pressed. Used to update iTimeLastKey
+        /// for custom shader uniforms.
+        ///
+        /// Must be called on the render thread.
+        pub fn notifyKeyPress(self: *Self) !void {
+            self.custom_shader_key_pressed = true;
+        }
+
         /// Callback when the window is visible or occluded.
         ///
         /// Must be called on the render thread.
@@ -1117,6 +1133,9 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
                 @floatFromInt(self.grid_metrics.cell_width),
                 @floatFromInt(self.grid_metrics.cell_height),
             };
+            if (self.has_custom_shaders) {
+                self.custom_shader_uniforms.cell_size = self.uniforms.cell_size;
+            }
         }
 
         /// Update the frame data.
@@ -1968,6 +1987,12 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
                 @floatFromInt(self.size.screen.width),
                 @floatFromInt(self.size.screen.height),
             };
+            if (self.has_custom_shaders) {
+                self.custom_shader_uniforms.grid_offset = .{
+                    @floatFromInt(blank.left),
+                    @floatFromInt(blank.top),
+                };
+            }
         }
 
         /// Update the background image vertex buffer (CPU-side).
@@ -2219,6 +2244,11 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
                 uniforms.time_focus = uniforms.time;
                 self.custom_shader_focused_changed = false;
             }
+
+            if (self.custom_shader_key_pressed) {
+                uniforms.key_time = uniforms.time;
+                self.custom_shader_key_pressed = false;
+            }
         }
 
         /// Build the overlay as configured. Returns null if there is no
@@ -2333,6 +2363,12 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
                 // Update our uniforms accordingly, otherwise
                 // our background cells will be out of place.
                 self.uniforms.grid_size = .{ new_size.columns, new_size.rows };
+                if (self.has_custom_shaders) {
+                    self.custom_shader_uniforms.grid_size = .{
+                        @floatFromInt(new_size.columns),
+                        @floatFromInt(new_size.rows),
+                    };
+                }
             }
 
             const rebuild = state.dirty == .full or grid_size_diff;

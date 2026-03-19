@@ -2668,6 +2668,11 @@ pub fn keyCallback(
         self.hideMouse();
     }
 
+    // Notify the renderer of key presses for the iTimeLastKey shader uniform.
+    if (event.action == .press) {
+        _ = self.renderer_thread.mailbox.push(.{ .key_press = {} }, .{ .instant = {} });
+    }
+
     // If our mouse modifiers change we may need to change our
     // link highlight state.
     if (!self.mouse.mods.equal(event.mods)) mouse_mods: {

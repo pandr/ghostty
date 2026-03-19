@@ -26,6 +26,10 @@ pub const Message = union(enum) {
     /// restarting the timer.
     reset_cursor_blink,
 
+    /// A key was pressed (not released or repeated). Used to update the
+    /// iTimeLastKey custom shader uniform.
+    key_press,
+
     /// Change the font grid. This can happen for any number of reasons
     /// including a font size change, family change, etc.
     font_grid: struct {

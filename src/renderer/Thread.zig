@@ -423,6 +423,8 @@ fn drainMailbox(self: *Thread) !void {
                 }
             },
 
+            .key_press => try self.renderer.notifyKeyPress(),
+
             .reset_cursor_blink => {
                 self.flags.cursor_blink_visible = true;
                 if (self.cursor_c.state() == .active) {
