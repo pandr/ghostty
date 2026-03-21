@@ -220,6 +220,10 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
         /// Whether or not we have custom shaders.
         has_custom_shaders: bool = false,
 
+        /// Whether custom shaders are enabled. Can be toggled at runtime
+        /// via the toggle_custom_shaders binding action.
+        custom_shaders_enabled: bool = true,
+
         /// Our shader pipelines.
         shaders: Shaders,
 
@@ -1019,7 +1023,15 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
         /// True if our renderer has animations so that a higher frequency
         /// timer is used.
         pub fn hasAnimations(self: *const Self) bool {
-            return self.has_custom_shaders;
+            return self.has_custom_shaders and self.custom_shaders_enabled;
+        }
+
+        /// Toggle custom shaders on or off.
+        ///
+        /// Must be called on the render thread.
+        pub fn toggleCustomShaders(self: *Self) void {
+            self.custom_shaders_enabled = !self.custom_shaders_enabled;
+            log.info("custom shaders enabled={}", .{self.custom_shaders_enabled});
         }
 
         /// True if our renderer is using vsync. If true, the renderer or apprt
@@ -1610,7 +1622,9 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
 
             {
                 var pass = frame_ctx.renderPass(&.{.{
-                    .target = if (frame.custom_shader_state) |state|
+                    .target = if (!self.custom_shaders_enabled)
+                        .{ .target = frame.target }
+                    else if (frame.custom_shader_state) |state|
                         .{ .texture = state.back_texture }
                     else
                         .{ .target = frame.target },
@@ -1708,33 +1722,35 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
                 );
             }
 
-            // If we have custom shaders, then we render them.
-            if (frame.custom_shader_state) |*state| {
-                // Sync our uniforms.
-                try state.uniforms.sync(&.{self.custom_shader_uniforms});
+            // If we have custom shaders and they are enabled, render them.
+            if (self.custom_shaders_enabled) {
+                if (frame.custom_shader_state) |*state| {
+                    // Sync our uniforms.
+                    try state.uniforms.sync(&.{self.custom_shader_uniforms});
 
-                for (self.shaders.post_pipelines, 0..) |pipeline, i| {
-                    defer state.swap();
+                    for (self.shaders.post_pipelines, 0..) |pipeline, i| {
+                        defer state.swap();
 
-                    var pass = frame_ctx.renderPass(&.{.{
-                        .target = if (i < self.shaders.post_pipelines.len - 1)
-                            .{ .texture = state.front_texture }
-                        else
-                            .{ .target = frame.target },
-                        .clear_color = .{ 0.0, 0.0, 0.0, 0.0 },
-                    }});
-                    defer pass.complete();
+                        var pass = frame_ctx.renderPass(&.{.{
+                            .target = if (i < self.shaders.post_pipelines.len - 1)
+                                .{ .texture = state.front_texture }
+                            else
+                                .{ .target = frame.target },
+                            .clear_color = .{ 0.0, 0.0, 0.0, 0.0 },
+                        }});
+                        defer pass.complete();
 
-                    pass.step(.{
-                        .pipeline = pipeline,
-                        .uniforms = state.uniforms.buffer,
-                        .textures = &.{state.back_texture},
-                        .samplers = &.{state.sampler},
-                        .draw = .{
-                            .type = .triangle,
-                            .vertex_count = 3,
-                        },
-                    });
+                        pass.step(.{
+                            .pipeline = pipeline,
+                            .uniforms = state.uniforms.buffer,
+                            .textures = &.{state.back_texture},
+                            .samplers = &.{state.sampler},
+                            .draw = .{
+                                .type = .triangle,
+                                .vertex_count = 3,
+                            },
+                        });
+                    }
                 }
             }
         }

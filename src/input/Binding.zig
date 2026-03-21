@@ -828,6 +828,13 @@ pub const Action = union(enum) {
     /// Only implemented on macOS.
     toggle_background_opacity,
 
+    /// Toggle custom shaders on or off.
+    ///
+    /// When toggled off, custom shaders are not rendered but remain loaded so
+    /// that toggling back on is instant. The animation loop is also paused
+    /// while shaders are disabled to avoid wasting CPU.
+    toggle_custom_shaders,
+
     /// Check for updates.
     ///
     /// Only implemented on macOS.
@@ -1362,6 +1369,7 @@ pub const Action = union(enum) {
             .toggle_mouse_reporting,
             .toggle_command_palette,
             .toggle_background_opacity,
+            .toggle_custom_shaders,
             .show_on_screen_keyboard,
             .reset_window_size,
             .activate_key_table,

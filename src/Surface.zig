@@ -2605,8 +2605,6 @@ pub fn keyCallback(
     self: *Surface,
     event_orig: input.KeyEvent,
 ) !InputEffect {
-    // log.warn("text keyCallback event={}", .{event_orig});
-
     // Apply key remappings to transform modifiers before any processing.
     // This allows users to remap modifier keys at the app level.
     var event = event_orig;
@@ -5614,6 +5612,15 @@ pub fn performBindingAction(self: *Surface, action: input.Binding.Action) !bool 
             .toggle_background_opacity,
             {},
         ),
+
+        .toggle_custom_shaders => {
+            _ = self.renderer_thread.mailbox.push(
+                .{ .toggle_custom_shaders = {} },
+                .{ .forever = {} },
+            );
+            try self.queueRender();
+            return true;
+        },
 
         .show_on_screen_keyboard => return try self.rt_app.performAction(
             .{ .surface = self },

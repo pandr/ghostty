@@ -651,6 +651,12 @@ fn actionCommands(action: Action.Key) []const Command {
             .description = "Toggle the background opacity of a window that started transparent.",
         }},
 
+        .toggle_custom_shaders => comptime &.{.{
+            .action = .toggle_custom_shaders,
+            .title = "Toggle Custom Shaders",
+            .description = "Toggle custom shaders on or off.",
+        }},
+
         .check_for_updates => comptime &.{.{
             .action = .check_for_updates,
             .title = "Check for Updates",
