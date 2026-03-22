@@ -425,8 +425,8 @@ fn drainMailbox(self: *Thread) !void {
 
             .key_press => try self.renderer.notifyKeyPress(),
 
-            .toggle_custom_shaders => {
-                self.renderer.toggleCustomShaders();
+            .set_custom_shaders_enabled => |enabled| {
+                self.renderer.setCustomShadersEnabled(enabled);
                 self.syncDrawTimer();
             },
 

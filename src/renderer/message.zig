@@ -30,8 +30,8 @@ pub const Message = union(enum) {
     /// iTimeLastKey custom shader uniform.
     key_press,
 
-    /// Toggle custom shaders on or off.
-    toggle_custom_shaders,
+    /// Set custom shaders enabled or disabled.
+    set_custom_shaders_enabled: bool,
 
     /// Change the font grid. This can happen for any number of reasons
     /// including a font size change, family change, etc.

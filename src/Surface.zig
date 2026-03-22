@@ -74,6 +74,10 @@ font_metrics: font.Metrics,
 /// a specific size.
 font_size_adjusted: bool,
 
+/// The last title set by the terminal, without any indicator suffix.
+/// Used to recompose the display title when shader state changes.
+title_text: ?[:0]const u8 = null,
+
 /// The renderer for this surface.
 renderer: Renderer,
 
@@ -811,6 +815,9 @@ pub fn deinit(self: *Surface) void {
     self.keyboard.sequence_queued.deinit(self.alloc);
     self.keyboard.table_stack.deinit(self.alloc);
 
+    // Clean up stored title
+    if (self.title_text) |t| self.alloc.free(t);
+
     // Clean up our font grid
     self.app.font_grid_set.deref(self.font_grid_key);
 
@@ -940,6 +947,25 @@ pub fn needsConfirmQuit(self: *Surface) bool {
     };
 }
 
+/// Set the display title, appending [s] when custom shaders are enabled.
+fn setDisplayTitle(self: *Surface, base_title: [:0]const u8) !void {
+    if (self.app.custom_shaders_enabled) {
+        const title = try std.fmt.allocPrintSentinel(self.alloc, "{s} [s]", .{base_title}, 0);
+        defer self.alloc.free(title);
+        _ = try self.rt_app.performAction(
+            .{ .surface = self },
+            .set_title,
+            .{ .title = title },
+        );
+    } else {
+        _ = try self.rt_app.performAction(
+            .{ .surface = self },
+            .set_title,
+            .{ .title = base_title },
+        );
+    }
+}
+
 /// Called from the app thread to handle mailbox messages to our specific
 /// surface.
 pub fn handleMessage(self: *Surface, msg: Message) !void {
@@ -957,11 +983,12 @@ pub fn handleMessage(self: *Surface, msg: Message) !void {
             // We know that our title should end in 0.
             const slice = std.mem.sliceTo(@as([*:0]const u8, @ptrCast(v)), 0);
             log.debug("changing title \"{s}\"", .{slice});
-            _ = try self.rt_app.performAction(
-                .{ .surface = self },
-                .set_title,
-                .{ .title = slice },
-            );
+
+            // Store the raw title for recomposition on shader toggle.
+            if (self.title_text) |t| self.alloc.free(t);
+            self.title_text = self.alloc.dupeZ(u8, slice) catch null;
+
+            try self.setDisplayTitle(slice);
         },
 
         .report_title => |style| report_title: {
@@ -5614,11 +5641,30 @@ pub fn performBindingAction(self: *Surface, action: input.Binding.Action) !bool 
         ),
 
         .toggle_custom_shaders => {
-            _ = self.renderer_thread.mailbox.push(
-                .{ .toggle_custom_shaders = {} },
-                .{ .forever = {} },
-            );
-            try self.queueRender();
+            self.app.custom_shaders_enabled = !self.app.custom_shaders_enabled;
+            const enabled = self.app.custom_shaders_enabled;
+            log.info("custom shaders enabled={} (global)", .{enabled});
+
+            // Broadcast to all surfaces' renderers and refresh titles.
+            for (self.app.surfaces.items) |surface| {
+                const core = surface.core();
+                _ = core.renderer_thread.mailbox.push(
+                    .{ .set_custom_shaders_enabled = enabled },
+                    .{ .forever = {} },
+                );
+                core.queueRender() catch |err| {
+                    log.warn("error queuing render for surface err={}", .{err});
+                };
+
+                // Refresh the title to show/hide the shader indicator.
+                if (core.config.title == null) {
+                    if (core.title_text) |title| {
+                        core.setDisplayTitle(title) catch |err| {
+                            log.warn("error updating title for surface err={}", .{err});
+                        };
+                    }
+                }
+            }
             return true;
         },
 

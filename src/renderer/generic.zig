@@ -1026,11 +1026,11 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
             return self.has_custom_shaders and self.custom_shaders_enabled;
         }
 
-        /// Toggle custom shaders on or off.
+        /// Set custom shaders enabled or disabled.
         ///
         /// Must be called on the render thread.
-        pub fn toggleCustomShaders(self: *Self) void {
-            self.custom_shaders_enabled = !self.custom_shaders_enabled;
+        pub fn setCustomShadersEnabled(self: *Self, enabled: bool) void {
+            self.custom_shaders_enabled = enabled;
             log.info("custom shaders enabled={}", .{self.custom_shaders_enabled});
         }
 

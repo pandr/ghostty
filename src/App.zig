@@ -69,6 +69,10 @@ config_conditional_state: configpkg.ConditionalState,
 /// if they are the first surface.
 first: bool = true,
 
+/// Whether custom shaders are enabled. This is shared across all
+/// surfaces so that toggling affects every tab/window at once.
+custom_shaders_enabled: bool = true,
+
 pub const CreateError = Allocator.Error || font.SharedGridSet.InitError;
 
 /// Create a new app instance. This returns a stable pointer to the app
