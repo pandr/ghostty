@@ -31,7 +31,12 @@ pub fn create(b: *std.Build, opts: Options) *LibtoolStep {
     const self = b.allocator.create(LibtoolStep) catch @panic("OOM");
 
     const run_step = RunStep.create(b, b.fmt("libtool {s}", .{opts.name}));
-    run_step.addArgs(&.{ "libtool", "-static", "-o" });
+    // Use a wrapper script that repacks archives with Apple's ar before
+    // calling libtool. This works around Xcode 26.4's libtool silently
+    // dropping archive members that aren't 8-byte aligned (zig's ar
+    // writer produces archives with 2-byte alignment).
+    run_step.addFileArg(b.path("src/build/libtool-wrapper.sh"));
+    run_step.addArgs(&.{ "-static", "-o" });
     const output = run_step.addOutputFileArg(opts.out_name);
     for (opts.sources) |source| run_step.addFileArg(source);
 
