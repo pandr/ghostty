@@ -589,6 +589,18 @@ fn drawCallback(
         return .disarm;
     };
 
+    // Update the mouse position for custom shader iMouse uniform.
+    // We do this on every animation frame so that iMouse.xy reflects
+    // the current cursor position even when the terminal is idle
+    // (i.e. when updateFrame is not called alongside drawFrame).
+    {
+        t.state.mutex.lock();
+        const mouse_pos = t.state.mouse.pos;
+        const click_pos = t.state.mouse.click_pos;
+        t.state.mutex.unlock();
+        t.renderer.setMouseShaderPos(mouse_pos, click_pos);
+    }
+
     // Draw
     t.drawFrame(false);
 

@@ -40,6 +40,14 @@ pub const Mouse = struct {
     /// This could really just be mods in general and we probably will
     /// move it out of mouse state at some point.
     mods: inputpkg.Mods = .{},
+
+    /// Current mouse position in window pixel coordinates (top-left origin).
+    /// Used for the iMouse shader uniform.
+    pos: [2]f32 = .{ 0, 0 },
+
+    /// Mouse position at the last button press, in window pixel coordinates.
+    /// Used for the iMouse.zw shader uniform.
+    click_pos: [2]f32 = .{ 0, 0 },
 };
 
 /// The pre-edit state. See Surface.preeditCallback for more information.

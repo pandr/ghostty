@@ -123,6 +123,17 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
         /// to update iTimeLastKey.
         custom_shader_key_pressed: bool = false,
 
+        /// Flag to indicate that the mouse moved, for custom shaders
+        /// to update iTimeLastMouseMove.
+        custom_shader_mouse_moved: bool = false,
+
+        /// Raw (pre-Y-flip) mouse position for custom shaders, in window
+        /// pixel coordinates (top-left origin). Stored as [x, y, click_x,
+        /// click_y]. The Y-flip for fragCoord convention is applied each
+        /// frame inside updateCustomShaderUniformsForFrame so that
+        /// iMouse.xy is always current, even when only drawFrame runs.
+        custom_shader_mouse_raw: [4]f32 = .{ 0, 0, 0, 0 },
+
         /// The most recent scrollbar state. We use this as a cache to
         /// determine if we need to notify the apprt that there was a
         /// scrollbar change.
@@ -757,7 +768,7 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
                     .frame = 0,
                     .channel_time = @splat(@splat(0)), // not currently updated
                     .channel_resolution = @splat(@splat(0)),
-                    .mouse = @splat(0), // not currently updated
+                    .mouse = @splat(0),
                     .date = @splat(0), // not currently updated
                     .sample_rate = 0, // N/A, we don't have any audio
                     .current_cursor = @splat(0),
@@ -781,6 +792,7 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
                     .grid_size = .{ 0, 0 },
                     .grid_offset = .{ 0, 0 },
                     .key_time = 0,
+                    .mouse_time = 0,
                 },
                 .bg_image_buffer = undefined,
 
@@ -1075,6 +1087,27 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
             self.custom_shader_key_pressed = true;
         }
 
+        /// Update the raw mouse position used by the iMouse custom shader
+        /// uniform. This stores the position in top-left-origin window pixel
+        /// coordinates; the Y-flip for fragCoord convention is applied each
+        /// frame inside updateCustomShaderUniformsForFrame.
+        ///
+        /// May be called from any thread that holds draw_mutex, but is
+        /// intended to be called on the render thread before drawFrame so
+        /// that iMouse.xy is current even during animation-only frames.
+        pub fn setMouseShaderPos(
+            self: *Self,
+            pos: [2]f32,
+            click_pos: [2]f32,
+        ) void {
+            if (!self.has_custom_shaders) return;
+            self.draw_mutex.lock();
+            defer self.draw_mutex.unlock();
+            self.custom_shader_mouse_raw = .{
+                pos[0], pos[1], click_pos[0], click_pos[1],
+            };
+        }
+
         /// Callback when the window is visible or occluded.
         ///
         /// Must be called on the render thread.
@@ -1309,6 +1342,18 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
                     .overlay_features = overlay_features,
                 };
             };
+
+            // Store the raw mouse position so that every drawFrame call
+            // (including animation-only frames that skip updateFrame) can
+            // recompute iMouse.xy via updateCustomShaderUniformsForFrame.
+            if (self.has_custom_shaders) {
+                self.custom_shader_mouse_raw = .{
+                    critical.mouse.pos[0],
+                    critical.mouse.pos[1],
+                    critical.mouse.click_pos[0],
+                    critical.mouse.click_pos[1],
+                };
+            }
 
             // Outside the critical area we can update our links to contain
             // our regex results.
@@ -2264,6 +2309,32 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
             if (self.custom_shader_key_pressed) {
                 uniforms.key_time = uniforms.time;
                 self.custom_shader_key_pressed = false;
+            }
+
+            // Recompute iMouse every frame from the stored raw position so
+            // that iMouse.xy tracks the cursor even during animation-only
+            // frames where updateFrame is not called.
+            {
+                const screen_height: f32 = @floatFromInt(screen.height);
+                const mx = self.custom_shader_mouse_raw[0];
+                var my = self.custom_shader_mouse_raw[1];
+                const cx = self.custom_shader_mouse_raw[2];
+                var cy = self.custom_shader_mouse_raw[3];
+                // Match fragCoord convention: flip Y when +Y is up (non-Metal).
+                if (!GraphicsAPI.custom_shader_y_is_down) {
+                    my = screen_height - my;
+                    cy = screen_height - cy;
+                }
+                const new_mouse: [4]f32 = .{ mx, my, cx, cy };
+                if (!std.meta.eql(new_mouse[0..2].*, uniforms.mouse[0..2].*)) {
+                    self.custom_shader_mouse_moved = true;
+                }
+                uniforms.mouse = new_mouse;
+            }
+
+            if (self.custom_shader_mouse_moved) {
+                uniforms.mouse_time = uniforms.time;
+                self.custom_shader_mouse_moved = false;
             }
         }
 

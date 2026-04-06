@@ -32,6 +32,7 @@ layout(binding = 1, std140) uniform Globals {
     uniform vec2  iGridSize;
     uniform vec2  iGridOffset;
     uniform float iTimeLastKey;
+    uniform float iTimeLastMouseMove;
 };
 
 #define CURSORSTYLE_BLOCK        0

@@ -41,6 +41,7 @@ pub const Uniforms = extern struct {
     grid_size: [2]f32 align(8),
     grid_offset: [2]f32 align(8),
     key_time: f32 align(4),
+    mouse_time: f32 align(4),
 };
 
 /// The target to load shaders for.

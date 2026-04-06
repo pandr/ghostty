@@ -2939,7 +2939,13 @@ keybind: Keybinds = .{},
 ///    Currently only `iChannel0` exists, and `iChannelResolution[0]` is
 ///    identical to `iResolution`.
 ///
-///  * `vec4 iMouse` - Mouse input info. (NOT CURRENTLY SUPPORTED)
+///  * `vec4 iMouse` - Mouse position info.
+///
+///    Unlike ShaderToy, `iMouse.xy` always reflects the current mouse
+///    position (including hover, without requiring a button press).
+///    `iMouse.zw` holds the position of the last left button press.
+///    All coordinates are in pixels, matching the `fragCoord` convention
+///    (origin at bottom-left, +Y up) on OpenGL; on Metal, +Y is down.
 ///
 ///  * `vec4 iDate` - Date/time info. (NOT CURRENTLY SUPPORTED)
 ///
@@ -3023,6 +3029,10 @@ keybind: Keybinds = .{},
 ///  * `float iTimeLastKey` - Timestamp of the last key press, in the same
 ///    units as `iTime`. Use `iTime - iTimeLastKey` to get the number of
 ///    seconds elapsed since the last key press. Starts at 0 (no key pressed yet).
+///
+///  * `float iTimeLastMouseMove` - Timestamp of the last mouse movement, in
+///    the same units as `iTime`. Use `iTime - iTimeLastMouseMove` to get the
+///    number of seconds elapsed since the mouse last moved. Starts at 0.
 ///
 /// If the shader fails to compile, the shader will be ignored. Any errors
 /// related to shader compilation will not show up as configuration errors

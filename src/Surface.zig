@@ -3938,6 +3938,7 @@ pub fn mouseButtonCallback(
         self.mouse.left_click_screen = t.screens.active_key;
         self.mouse.left_click_xpos = pos.x;
         self.mouse.left_click_ypos = pos.y;
+        self.renderer_state.mouse.click_pos = .{ pos.x, pos.y };
 
         // Setup our click counter and timer
         if (std.time.Instant.now()) |now| {
@@ -4551,6 +4552,9 @@ pub fn cursorPosCallback(
     // want to set it when we're not selecting or doing any other mouse
     // event.
     self.renderer_state.mouse.point = null;
+
+    // Update pixel position for iMouse shader uniform.
+    self.renderer_state.mouse.pos = .{ pos.x, pos.y };
 
     // If we have an inspector, we need to always record position information
     if (self.inspector) |insp| {
