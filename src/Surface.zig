@@ -709,6 +709,15 @@ pub fn init(
     );
     self.renderer_thr.setName("renderer") catch {};
 
+    // Sync the global shader toggle state so new surfaces inherit
+    // whatever the user has set, rather than always starting enabled.
+    if (!app.custom_shaders_enabled) {
+        _ = self.renderer_thread.mailbox.push(
+            .{ .set_custom_shaders_enabled = false },
+            .{ .forever = {} },
+        );
+    }
+
     // Start our IO thread
     self.io_thr = try std.Thread.spawn(
         .{},
